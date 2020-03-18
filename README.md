@@ -5,7 +5,7 @@ Results
 
 
 
-![](images/DataFiltrationResults.png)
+![](images/DataFiltrationResults.PNG)
 
 See attached files for code used in "Boosting Financial Trading Algorithms Using Data Filtration" 3/18/2020
 
