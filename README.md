@@ -1,7 +1,8 @@
 # Data-Filtration-Algorithms
 Holds 12 algorithms that are compatible with quantopian or a local python instance with quantopian, pyfolio, numpy, and pandas.
 
-
+Results
+![](images/DataFiltrationResults.png)
 
 See attached files for code used in "Boosting Financial Trading Algorithms Using Data Filtration" 3/18/2020
 
@@ -16,3 +17,4 @@ If data filtration is to be actually implemented, the reader would need to build
 another trading platform that allows for algorithmic trading to send in buy and sell signals.
 
 Happy backtesting!
+
