@@ -2,7 +2,7 @@
 Holds 12 algorithms that are compatible with quantopian or a local python instance with quantopian, pyfolio, numpy, and pandas.
 
 Results
-![](images/DataFiltrationResults.png)
+![](images/Data Filtration Results.png)
 
 See attached files for code used in "Boosting Financial Trading Algorithms Using Data Filtration" 3/18/2020
 
