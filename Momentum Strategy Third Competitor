@@ -1,0 +1,119 @@
+import quantopian.algorithm as algo
+import quantopian.optimize as opt
+from quantopian.pipeline import Pipeline
+from quantopian.pipeline.data.builtin import USEquityPricing
+from quantopian.pipeline.factors import Returns
+from quantopian.pipeline.filters import QTradableStocksUS
+from quantopian.pipeline.factors import PercentChange
+
+
+MAX_GROSS_EXPOSURE = 1.0
+MAX_POSITION_CONCENTRATION = 0.001
+RETURNS_LOOKBACK_DAYS = 5
+
+
+def initialize(context):
+
+    algo.schedule_function(
+        test,
+        algo.date_rules.week_start(days_offset=0),
+        algo.time_rules.market_open(hours=1, minutes=30)
+    )
+
+    algo.attach_pipeline(make_pipeline(context), 'mean_reversion_example')
+    algo.attach_pipeline(maketest_pipeline(context), 'testing')
+
+
+def make_pipeline(context):
+    
+    universe = QTradableStocksUS()
+
+    recent_returns = Returns(
+        window_length=RETURNS_LOOKBACK_DAYS, 
+        mask=universe
+    )
+
+    recent_returns_zscore = recent_returns.zscore()
+
+    low_returns = recent_returns_zscore.percentile_between(0,10)
+    high_returns = recent_returns_zscore.percentile_between(90,100)
+
+    securities_to_trade = (low_returns | high_returns)
+
+    pipe = Pipeline(
+        columns={
+            'recent_returns_zscore': recent_returns_zscore
+        },
+        screen=securities_to_trade
+    )
+
+    return pipe
+
+
+#######################################################################################################################
+###adjustment for data filtration
+def test(context, data):
+    
+    print(context.test_variable[symbol('INTL')])
+    
+    #check_pair_status(context, data)
+    
+    
+    if context.test_variable[symbol('INTL')] < 0:
+        rebalance(context, data)
+    else:
+        close_orders(context, data)
+    return
+   
+
+
+def maketest_pipeline(context):
+    
+    market = symbol('INTL')
+    test_variable = PercentChange(inputs=[USEquityPricing.close], window_length=5)
+    
+    pipe = Pipeline(
+        columns={
+            'test_variable': test_variable,
+        }
+    )
+    
+    return pipe
+
+def close_orders(context,data):
+    
+    for stock in context.portfolio.positions.keys():
+        order_target(stock, 0)
+    return
+
+######################################################################################################################
+
+
+
+def before_trading_start(context, data):
+
+    context.output = algo.pipeline_output('mean_reversion_example')
+    context.recent_returns_zscore = context.output['recent_returns_zscore']
+    context.output = algo.pipeline_output('testing')
+    context.test_variable = context.output['test_variable']
+    return
+
+def rebalance(context, data):
+
+    objective = opt.MaximizeAlpha(context.recent_returns_zscore)
+    max_gross_exposure = opt.MaxGrossExposure(MAX_GROSS_EXPOSURE)
+    max_position_concentration = opt.PositionConcentration.with_equal_bounds(
+        -MAX_POSITION_CONCENTRATION,
+        MAX_POSITION_CONCENTRATION
+    )
+    
+
+    dollar_neutral = opt.DollarNeutral()
+    constraints = [
+        max_gross_exposure,
+        max_position_concentration,
+        dollar_neutral,
+    ]
+
+    algo.order_optimal_portfolio(objective, constraints)
+    return
