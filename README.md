@@ -10,7 +10,7 @@ To build the algorithms I tested over 01/01/2014-01/01/2015
 and the algorithms were then fully tested and data filtered over 01/01/2016 - 3/17/2020
 
 
-These algorithms are free to modify and adjust and serve a good template for running data filtration on other algorithms on quantopian
+These algorithms are free to modify and adjust and serve as a good template for running data filtration on other algorithms on the Quantopian platform.
 
 If data filtration is to be actually implemented, the reader would need to build or adjust these algorithms to work on 
 another trading platform that allows for algorithmic trading to send in buy and sell signals.
