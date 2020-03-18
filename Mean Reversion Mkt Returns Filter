@@ -1,0 +1,155 @@
+# Import the libraries we will use here.
+import quantopian.algorithm as algo
+import quantopian.optimize as opt
+import numpy as np
+import datetime as dt
+from quantopian.pipeline import Pipeline
+from quantopian.pipeline.data.builtin import USEquityPricing
+from quantopian.pipeline.factors import Returns
+from quantopian.pipeline.filters import QTradableStocksUS
+from quantopian.pipeline.filters import StaticAssets
+
+
+#initialize
+MAX_GROSS_EXPOSURE = 1.0
+MAX_POSITION_CONCENTRATION = 0.001
+RETURNS_LOOKBACK_DAYS = 5
+
+######################################################################################################
+def initialize(context):
+
+    # Rebalance on the first trading day of each week at 11AM.
+    algo.schedule_function(
+        test,
+        algo.date_rules.week_start(days_offset=0),
+        algo.time_rules.market_open(hours=1, minutes=30)
+    )
+
+    algo.attach_pipeline(make_pipeline(context), 'mean_reversion_example')
+    algo.attach_pipeline(maketest_pipeline(context), 'testing')
+    
+    return
+#######################################################################################################################
+###adjustment for data filtration
+def test(context, data):
+    
+    print(context.test_variable[symbol('SPY')])
+    
+    
+    if context.test_variable[symbol('SPY')] > 0:
+        rebalance(context, data)
+    else:
+        close_orders(context, data)
+    return
+
+from quantopian.pipeline.factors import PercentChange
+
+def maketest_pipeline(context):
+    
+    market = symbol('SPY')
+    test_variable = PercentChange(inputs=[USEquityPricing.close], window_length=5)
+    
+    pipe = Pipeline(
+        columns={
+            'test_variable': test_variable,
+        }
+    )
+    
+    return pipe
+
+#######################################################################
+def make_pipeline(context):
+
+    universe = QTradableStocksUS()
+    
+    # Create a Returns factor with a 5-day lookback window for all securities
+    # in our QTradableStocksUS Filter.
+    recent_returns = Returns(
+        window_length=RETURNS_LOOKBACK_DAYS, 
+        mask=universe
+    )
+ 
+    # Turn our recent_returns factor into a z-score factor to normalize the results.
+    recent_returns_zscore = recent_returns.zscore()
+
+    # Define high and low returns filters to be the bottom 10% and top 10% of
+    # securities in the QTradableStocksUS.
+    low_returns = recent_returns_zscore.percentile_between(0,10)
+    high_returns = recent_returns_zscore.percentile_between(90,100)
+    securities_to_trade = (low_returns | high_returns)
+
+
+    
+    securities_to_trade = (low_returns | high_returns)
+
+    # Create a pipeline object to computes the recent_returns_zscore for securities
+    # in the top 10% and bottom 10% (ranked by recent_returns_zscore) every day.
+    pipe = Pipeline(
+        columns={
+            'recent_returns_zscore': recent_returns_zscore,
+        },
+        screen=securities_to_trade
+    )
+
+    return pipe 
+
+
+    
+
+def before_trading_start(context, data):
+
+    context.output = algo.pipeline_output('mean_reversion_example')
+    context.recent_returns_zscore = context.output['recent_returns_zscore']
+    
+    context.output = algo.pipeline_output('testing')
+    context.test_variable = context.output['test_variable']
+    return
+
+
+##########################################################################################################
+def close_orders(context,data):
+    '''
+    for sec in context.stocks:  
+        order_share = context.portfolio.positions[sec].amount  
+        print("open order_share=",sec.symbol, " share=",order_share)
+
+        if order_share > 0:  
+            order_target(sec, 0)  
+        elif order_share < 0:  
+            order_target(sec,0)    
+
+    #check all close order success  
+    for sec in context.sids:  
+        order_share = context.portfolio.positions[sec].amount  
+        print("check order_share=",sec.symbol," share=",order_share)      
+    return
+    '''
+    
+    for stock in context.portfolio.positions.keys():
+        order_target(stock, 0)
+    return
+    
+    
+#############################################################################################################    
+def rebalance(context, data):
+
+    objective = opt.MaximizeAlpha(-context.recent_returns_zscore)
+    
+
+    max_gross_exposure = opt.MaxGrossExposure(MAX_GROSS_EXPOSURE)
+    max_position_concentration = opt.PositionConcentration.with_equal_bounds(
+        -MAX_POSITION_CONCENTRATION,
+        MAX_POSITION_CONCENTRATION
+    )
+    
+    dollar_neutral = opt.DollarNeutral()
+    
+
+    constraints = [
+        max_gross_exposure,
+        max_position_concentration,
+        dollar_neutral,
+    ]
+
+    algo.order_optimal_portfolio(objective, constraints)
+    return
