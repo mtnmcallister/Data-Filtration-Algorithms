@@ -1,4 +1,10 @@
 # Data-Filtration-Algorithms
+All Information is based off of the paper "Boosting Financial Trading Algorithms Using Data Filtration."
+See  	DataFiltrationF480McAllister.pdf for the entire paper.
+
+
+
+
 Holds 12 algorithms that are compatible with quantopian or a local python instance with quantopian, pyfolio, numpy, and pandas.
 
 Results
